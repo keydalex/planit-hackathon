@@ -160,13 +160,19 @@ export default function App() {
           .select('*')
           .order('created_at', { ascending: false });
 
-        if (error) throw error;
+        if (error) {
+          setDbConnected(false);
+          setLivePosts([{ id: 'err', platform: 'twitter', content: 'SUPABASE ERROR: ' + JSON.stringify(error), status: 'draft', created_at: new Date().toISOString() }]);
+          setDbLoading(false);
+          return;
+        }
+
         setLivePosts(data || []);
         setDbConnected(true);
 
         // Real-time listener
         channel = supabase
-          .channel('posts-changes')
+          .channel(`posts-changes-${Date.now()}`)
           .on('postgres_changes',
               { event: '*', schema: 'public', table: 'posts' },
               (payload) => {
@@ -179,10 +185,9 @@ export default function App() {
                 }
               })
           .subscribe();
-      } catch {
+      } catch (err) {
         setDbConnected(false);
-        // Inject demo data so the UI never looks empty
-        setLivePosts(DEMO_POSTS);
+        setLivePosts([{ id: 'catch', platform: 'twitter', content: 'CATCH ERROR: ' + err.message, status: 'draft', created_at: new Date().toISOString() }]);
       } finally {
         setDbLoading(false);
       }
